@@ -16,7 +16,11 @@ Capistrano::Configuration.instance.load do
 
     desc "Backup the DB before this update"
     task :backup_db, :roles => :db do
-      run "cd #{previous_release} && #{drush_cmd} sql-dump > dump.sql"
+      on_rollback { run "rm #{previous_release}/dump.sql" if previous_release }
+
+      if previous_release
+        run "cd #{previous_release} && #{drush_cmd} sql-dump > dump.sql"
+      end
     end
 
     desc "Move default drupal files if they exist and symlink to shared path"
