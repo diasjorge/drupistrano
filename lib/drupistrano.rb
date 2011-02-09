@@ -35,6 +35,16 @@ Capistrano::Configuration.instance.load do
       CMD
     end
 
+    desc "Copy site configuration into place"
+    task :copy_configuration, :roles => :app do
+      run <<-CMD
+        if [ -f #{shared_path}/sites/#{site_uri}/settings.php ]; then \
+          mkdir -p #{release_path}/sites/#{site_uri} && \
+          cp #{shared_path}/sites/#{site_uri}/settings.php #{current_release}/sites/#{site_uri}/; \
+        fi
+      CMD
+    end
+
     desc "Revert all features"
     task :revert_features, :roles => :db do
       run "cd #{current_path} && #{drush_cmd} -y features-revert-all"
@@ -52,8 +62,9 @@ Capistrano::Configuration.instance.load do
   end
 
   # Hooks
-  after "deploy:update_code", "deploy:backup_db"
+  after "deploy:update_code", "deploy:copy_configuration"
 
+  before "deploy:symlink", "deploy:backup_db"
   before "deploy:symlink", "deploy:move_default_files"
   before "deploy:symlink", "deploy:revert_features"
   before "deploy:symlink", "deploy:clear_cache"
