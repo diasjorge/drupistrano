@@ -46,13 +46,13 @@ Capistrano::Configuration.instance.load do
     end
 
     desc "Revert all features"
-    task :revert_features, :roles => :db do
-      run "cd #{current_path} && #{drush_cmd} -y features-revert-all"
+    task :revert_features, :roles => :app do
+      run "cd #{current_release} && #{drush_cmd} -y features-revert-all"
     end
 
     desc "Clear all cache"
     task :clear_cache, :roles => :app do
-      run "cd #{current_path} && #{drush_cmd} cache-clear all"
+      run "cd #{current_release} && #{drush_cmd} cache-clear all"
     end
 
     desc "Execute database updates"
