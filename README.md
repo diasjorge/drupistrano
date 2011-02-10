@@ -12,3 +12,4 @@
 
 * site_uri: Uri of the site as in sites/all/. Eg. example.com. Default Value: default
 * drush_path: Drush Command to use. Eg. "/opt/bin/drush". Default Value: drush
+* ispconfig: Set this to true if you use ispconfig. Default value: false
