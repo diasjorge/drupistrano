@@ -96,4 +96,66 @@ Capistrano::Configuration.instance.load do
       run symlink_execute_cmd
     end
   end
+
+  namespace :db do
+    desc "Download DB dump"
+    task :pull, :roles => :db, :once => true do
+      Capistrano::CLI.ui.say("You are about to import the DB from the #{stage} server")
+
+      agree = Capistrano::CLI.ui.agree("Continue (Yes, [No]) ") do |q|
+        q.default = 'n'
+      end
+
+      exit unless agree
+
+      deploy.clear_cache
+
+      run "cd #{current_release}; #{drush_cmd} sql-dump > /tmp/dump.sql"
+
+      download("/tmp/dump.sql", "/tmp/dump.sql")
+
+      system "drush -y sql-drop"
+      system "drush sql-cli < /tmp/dump.sql"
+    end
+
+    desc "Copy local Database to remote server"
+    task :push, :roles => :db, :once => true do
+      Capistrano::CLI.ui.say <<-MSG
+**************************** DANGER *****************************
+*** You are about to EXPORT your DB to the #{stage} server ***
+*****************************************************************
+MSG
+
+      agree = Capistrano::CLI.ui.agree("Continue (Yes, [No]) ") do |q|
+        q.validate = /\Ayes?|no?\Z/i
+        q.default  = 'n'
+      end
+
+      exit unless agree
+
+      system "drush cc all; drush sql-dump > /tmp/dump.sql"
+      top.upload("/tmp/dump.sql", "/tmp/dump.sql")
+      run "cd #{current_release} && #{drush_cmd} sql-cli < /tmp/dump.sql"
+    end
+
+  end
+
+  namespace :deploy do
+    namespace :files do
+      task :pull, :roles => :app, :once => true do
+        server = find_servers_for_task(current_task).first
+        server_user = server.user || user
+        system "rsync -avz #{server_user}@#{server.host}:deployment/kommerling/shared/files/ sites/default/files"
+      end
+    end
+  end
+
+  namespace :drupal do
+    task :drush, :roles => :app, :once => true do
+      cmd = ENV["CMD"] || ""
+      abort "Please specify a command (via the FILES environment variable)" if cmd.empty?
+      run "cd #{current_release} && #{drush_cmd} -y #{cmd}"
+    end
+  end
+
 end
