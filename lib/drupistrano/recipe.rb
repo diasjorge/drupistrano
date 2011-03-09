@@ -145,7 +145,7 @@ MSG
       task :pull, :roles => :app, :once => true do
         server = find_servers_for_task(current_task).first
         server_user = server.user || user
-        system "rsync -avz #{server_user}@#{server.host}:deployment/kommerling/shared/files/ sites/default/files"
+        system "rsync -avz #{server_user}@#{server.host}:#{shared_path}/files/ sites/default/files"
       end
     end
   end
