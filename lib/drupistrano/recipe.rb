@@ -48,20 +48,6 @@ Capistrano::Configuration.instance.load do
       CMD
     end
 
-    desc "Revert all features"
-    task :revert_features, :roles => :app do
-      if previous_release
-        run "cd #{current_release} && #{drush_cmd} -y features-revert-all"
-      end
-    end
-
-    desc "Clear all cache"
-    task :clear_cache, :roles => :app do
-      if previous_release
-        run "cd #{current_release} && #{drush_cmd} cache-clear all"
-      end
-    end
-
     desc "Execute database updates"
     task :migrate, :roles => :db do
       run "cd #{current_release} && #{drush_cmd} -y updatedb"
@@ -97,65 +83,77 @@ Capistrano::Configuration.instance.load do
     end
   end
 
-  namespace :db do
-    desc "Download DB dump"
-    task :pull, :roles => :db, :once => true do
-      Capistrano::CLI.ui.say("You are about to import the DB from the #{stage} server")
-
-      agree = Capistrano::CLI.ui.agree("Continue (Yes, [No]) ") do |q|
-        q.default = 'n'
-      end
-
-      exit unless agree
-
-      deploy.clear_cache
-
-      run "cd #{current_release}; #{drush_cmd} sql-dump > /tmp/dump.sql"
-
-      download("/tmp/dump.sql", "/tmp/dump.sql")
-
-      system "drush -y sql-drop"
-      system "drush sql-cli < /tmp/dump.sql"
+  namespace :drupal do
+    desc "Execute a drush command remotely"
+    task :drush, :roles => :app, :once => true do
+      cmd = ENV["CMD"] || ""
+      abort "Please specify a command (via the FILES environment variable)" if cmd.empty?
+      run "cd #{current_release} && #{drush_cmd} -y #{cmd}"
     end
 
-    desc "Copy local Database to remote server"
-    task :push, :roles => :db, :once => true do
-      Capistrano::CLI.ui.say <<-MSG
-**************************** DANGER *****************************
-*** You are about to EXPORT your DB to the #{stage} server ***
-*****************************************************************
-MSG
-
-      agree = Capistrano::CLI.ui.agree("Continue (Yes, [No]) ") do |q|
-        q.validate = /\Ayes?|no?\Z/i
-        q.default  = 'n'
+    desc "Revert all features"
+    task :revert_features, :roles => :app do
+      if previous_release
+        run "cd #{current_release} && #{drush_cmd} -y features-revert-all"
       end
-
-      exit unless agree
-
-      system "drush cc all; drush sql-dump > /tmp/dump.sql"
-      top.upload("/tmp/dump.sql", "/tmp/dump.sql")
-      run "cd #{current_release} && #{drush_cmd} sql-cli < /tmp/dump.sql"
     end
 
-  end
+    desc "Clear all cache"
+    task :clear_cache, :roles => :app do
+      if previous_release
+        run "cd #{current_release} && #{drush_cmd} cache-clear all"
+      end
+    end
 
-  namespace :deploy do
     namespace :files do
+      desc "Synchronize local files with remote server"
       task :pull, :roles => :app, :once => true do
         server = find_servers_for_task(current_task).first
         server_user = server.user || user
         system "rsync -avz #{server_user}@#{server.host}:#{shared_path}/files/ sites/default/files"
       end
     end
-  end
 
-  namespace :drupal do
-    task :drush, :roles => :app, :once => true do
-      cmd = ENV["CMD"] || ""
-      abort "Please specify a command (via the FILES environment variable)" if cmd.empty?
-      run "cd #{current_release} && #{drush_cmd} -y #{cmd}"
+    namespace :db do
+      desc "Download DB dump from server to local machine"
+      task :pull, :roles => :db, :once => true do
+        Capistrano::CLI.ui.say("You are about to import the DB from the #{stage} server")
+
+        agree = Capistrano::CLI.ui.agree("Continue (Yes, [No]) ") do |q|
+          q.default = 'n'
+        end
+
+        exit unless agree
+
+        deploy.clear_cache
+
+        run "cd #{current_release}; #{drush_cmd} sql-dump > /tmp/dump.sql"
+
+        download("/tmp/dump.sql", "/tmp/dump.sql")
+
+        system "drush -y sql-drop"
+        system "drush sql-cli < /tmp/dump.sql"
+      end
+
+      desc "Copy local Database to remote server"
+      task :push, :roles => :db, :once => true do
+        Capistrano::CLI.ui.say <<-MSG
+**************************** DANGER *****************************
+*** You are about to EXPORT your DB to the #{stage} server ***
+*****************************************************************
+MSG
+
+        agree = Capistrano::CLI.ui.agree("Continue (Yes, [No]) ") do |q|
+          q.validate = /\Ayes?|no?\Z/i
+          q.default  = 'n'
+        end
+
+        exit unless agree
+
+        system "drush cc all; drush sql-dump > /tmp/dump.sql"
+        top.upload("/tmp/dump.sql", "/tmp/dump.sql")
+        run "cd #{current_release} && #{drush_cmd} sql-cli < /tmp/dump.sql"
+      end
     end
   end
-
 end
