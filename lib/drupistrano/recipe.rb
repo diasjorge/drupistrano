@@ -69,7 +69,7 @@ Capistrano::Configuration.instance.load do
 
     desc "Setup configuration"
     task :setup_configuration, :roles => :app do
-      run "mkdir -p #{site_config_path}"
+      run "mkdir -p #{site_config_path} && mkdir -p #{shared_path}/files"
       top.upload File.join('sites', 'default', 'default.settings.php'),
                  File.join(site_config_path, 'settings.php')
     end
