@@ -125,7 +125,7 @@ Capistrano::Configuration.instance.load do
 
         exit unless agree
 
-        deploy.clear_cache
+        drupal.clear_cache
 
         run "cd #{current_release}; #{drush_cmd} sql-dump > /tmp/dump.sql"
 
